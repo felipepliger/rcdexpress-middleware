@@ -1,16 +1,23 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const https = require('https');
 
 const app = express();
 app.use(cors());
+
+// cria um agente HTTPS que ignora certificados inválidos
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false
+});
+
 // rota proxy
 app.get('/listarNota', async (req, res) => {
   try {
     const { cnpjclie, serienf, numnota, chaveNFe } = req.query;
 
     // monta a URL do serviço externo
-    let url = 'https://rcdexpress.ddns.com.br:8090/ADTWebService/conhecimento/listarNota?';
+    let url = 'https://rcdexpress.ddns.com.br:8443/ADTWebService/conhecimento/listarNota?';
 
     if (cnpjclie && serienf && chaveNFe) {
       url += `cnpjclie=${cnpjclie}&serienf=${serienf}&chaveNFe=${chaveNFe}`;
@@ -19,13 +26,13 @@ app.get('/listarNota', async (req, res) => {
     } else {
       return res.status(400).json({ erro: 'Parâmetros insuficientes' });
     }
-    const resposta = await axios.get(url);
+    const resposta = await axios.get(url, { httpsAgent });
 
     res.json(resposta.data);
 
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ erro: 'Falha ao buscar nota' });
+    console.error(err);
+    res.status(500).json({ erro: 'Falha ao buscar nota', detalhe: err.message });
   }
 });
 

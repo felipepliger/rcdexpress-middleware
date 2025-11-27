@@ -10,7 +10,7 @@ app.get('/listarNota', async (req, res) => {
     const { cnpjclie, serienf, numnota, chaveNFe } = req.query;
 
     // monta a URL do serviço externo
-    let url = 'http://rcdexpress.ddns.com.br:8090/ADTWebService/conhecimento/listarNota?';
+    let url = 'https://rcdexpress.ddns.com.br:8090/ADTWebService/conhecimento/listarNota?';
 
     if (cnpjclie && serienf && chaveNFe) {
       url += `cnpjclie=${cnpjclie}&serienf=${serienf}&chaveNFe=${chaveNFe}`;

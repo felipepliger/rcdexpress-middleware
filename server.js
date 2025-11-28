@@ -44,10 +44,10 @@ app.get('/listarNota', async (req, res) => {
 
 const PORT = 3000;
 
-const options = {
-  pfx: fs.readFileSync("1007107376.pfx"),
-  passphrase: "270270ab"
-};
+// const options = {
+//   pfx: fs.readFileSync("1007107376.pfx"),
+//   passphrase: "270270ab"
+// };
 
 // https.createServer(options, app).listen(PORT, () => {
 //   console.log(`Servidor HTTPS rodando em https://localhost:${PORT}`);

@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const http = require('http');
 const https = require('https');
 const fs = require('fs');
 
@@ -29,6 +30,7 @@ app.get('/listarNota', async (req, res) => {
     }
 
     const resposta = await axios.get(url, { httpsAgent });
+    // const resposta = await axios.get(url);
     res.json(resposta.data);
 
   } catch (err) {
@@ -43,10 +45,14 @@ app.get('/listarNota', async (req, res) => {
 const PORT = 3000;
 
 const options = {
-  key: fs.readFileSync("localhost-key.pem"),
-  cert: fs.readFileSync("localhost.pem")
+  pfx: fs.readFileSync("1007107376.pfx"),
+  passphrase: "270270ab"
 };
 
-https.createServer(options, app).listen(PORT, () => {
-  console.log(`Servidor HTTPS rodando em https://localhost:${PORT}`);
+// https.createServer(options, app).listen(PORT, () => {
+//   console.log(`Servidor HTTPS rodando em https://localhost:${PORT}`);
+// });
+
+http.createServer(app).listen(PORT, () => {
+  console.log(`Servidor HTTP rodando em http://localhost:${PORT}`);
 });

@@ -2,11 +2,12 @@ const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const https = require('https');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
 
-// cria um agente HTTPS que ignora certificados inválidos
+// cria um agente HTTPS que ignora certificados inválidos (para o serviço externo)
 const httpsAgent = new https.Agent({
   rejectUnauthorized: false
 });
@@ -26,18 +27,26 @@ app.get('/listarNota', async (req, res) => {
     } else {
       return res.status(400).json({ erro: 'Parâmetros insuficientes' });
     }
-    const resposta = await axios.get(url, { httpsAgent });
 
+    const resposta = await axios.get(url, { httpsAgent });
     res.json(resposta.data);
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ erro: 'Falha ao buscar nota', detalhe: err.message });
+    res.status(500).json({
+      erro: 'Falha ao buscar nota',
+      detalhe: err.message
+    });
   }
 });
 
-// start
 const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor rodando em http://localhost:${PORT}`);
+
+const options = {
+  key: fs.readFileSync("localhost-key.pem"),
+  cert: fs.readFileSync("localhost.pem")
+};
+
+https.createServer(options, app).listen(PORT, () => {
+  console.log(`Servidor HTTPS rodando em https://localhost:${PORT}`);
 });

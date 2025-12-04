@@ -4,39 +4,84 @@ const axios = require('axios');
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
+const carbone = require('carbone');
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  exposedHeaders: ["Content-Disposition"]
+}));
 
-// cria um agente HTTPS que ignora certificados inválidos (para o serviço externo)
-const httpsAgent = new https.Agent({
-  rejectUnauthorized: false
-});
 
-// rota proxy
+const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+
+async function buscarNotas({ cnpjclie, serienf, numnota, chaveNFe, dataInicio, dataFim }) {
+  let url = 'https://rcdexpress.ddns.com.br:8443/ADTWebService/conhecimento/listarNota?';
+
+  if (cnpjclie && serienf && chaveNFe) {
+    url += `cnpjclie=${cnpjclie}&serienf=${serienf}&chaveNFe=${chaveNFe}`;
+  } else if (cnpjclie && dataInicio && dataFim) {
+    url += `cnpjclie=${cnpjclie}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
+  } else if (cnpjclie && numnota) {
+    url += `cnpjclie=${cnpjclie}&numnota=${numnota}`;
+  } else {
+    throw new Error('Parâmetros insuficientes');
+  }
+
+  const resposta = await axios.get(url, { httpsAgent });
+
+  return resposta.data; // { status, mensagem, data: [...] }
+}
+
 app.get('/listarNota', async (req, res) => {
   try {
-    const { cnpjclie, serienf, numnota, chaveNFe } = req.query;
-
-    // monta a URL do serviço externo
-    let url = 'https://rcdexpress.ddns.com.br:8443/ADTWebService/conhecimento/listarNota?';
-
-    if (cnpjclie && serienf && chaveNFe) {
-      url += `cnpjclie=${cnpjclie}&serienf=${serienf}&chaveNFe=${chaveNFe}`;
-    } else if (cnpjclie && numnota) {
-      url += `cnpjclie=${cnpjclie}&numnota=${numnota}`;
-    } else {
-      return res.status(400).json({ erro: 'Parâmetros insuficientes' });
-    }
-
-    const resposta = await axios.get(url, { httpsAgent });
-    // const resposta = await axios.get(url);
-    res.json(resposta.data);
-
+    const dados = await buscarNotas(req.query);
+    res.json(dados);
   } catch (err) {
     console.error(err);
     res.status(500).json({
       erro: 'Falha ao buscar nota',
+      detalhe: err.message
+    });
+  }
+});
+
+app.get('/relatorioExcel', async (req, res) => {
+  try {
+    const resposta = await buscarNotas(req.query);
+    const data = resposta.data;
+    
+    const templatePath = './templates/template.xlsx';
+
+    carbone.render(templatePath, data, (err, result) => {
+      if (err) {
+        console.error("Erro ao gerar XLSX:", err);
+        return res.status(500).json({ erro: 'Falha ao gerar relatório' });
+      }
+
+      // data e hora atual formatada
+      const agora = new Date();
+      const yyyy = agora.getFullYear();
+      const mm = String(agora.getMonth() + 1).padStart(2, '0');
+      const dd = String(agora.getDate()).padStart(2, '0');
+      const hh = String(agora.getHours()).padStart(2, '0');
+      const mi = String(agora.getMinutes()).padStart(2, '0');
+      const ss = String(agora.getSeconds()).padStart(2, '0');
+
+      const timestamp = `${yyyy}-${mm}-${dd}_${hh}-${mi}-${ss}`;
+
+      const fileName = `rcdexpress-${timestamp}.xlsx`;
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+
+      res.send(result);
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      erro: 'Falha ao gerar relatório',
       detalhe: err.message
     });
   }

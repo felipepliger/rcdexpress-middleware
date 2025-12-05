@@ -29,8 +29,16 @@ async function buscarNotas({ cnpjclie, serienf, numnota, chaveNFe, dataInicio, d
 
   const resposta = await axios.get(url, { httpsAgent });
 
-  return resposta.data; // { status, mensagem, data: [...] }
+  const dataOrdenada = resposta.data.data.sort(
+    (a, b) => new Date(b.emissao) - new Date(a.emissao) // mais recente → mais antigo
+  );
+
+  return {
+    ...resposta.data,
+    data: dataOrdenada
+  };
 }
+
 
 app.get('/listarNota', async (req, res) => {
   try {

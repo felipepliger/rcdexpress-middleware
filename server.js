@@ -95,6 +95,49 @@ app.get('/relatorioExcel', async (req, res) => {
   }
 });
 
+app.get('/relatorioPdf', async (req, res) => {
+  try {
+    const resposta = await buscarNotas(req.query);
+    const data = resposta.data;
+    
+    const templatePath = './templates/template-ods.ods';
+
+    carbone.render(templatePath, data, { convertTo: 'pdf' }, (err, result) => {
+      if (err) {
+        console.error("Erro ao gerar PDF:", err);
+        return res.status(500).json({ erro: 'Falha ao gerar relatório' });
+      }
+
+      // data e hora atual formatada
+      const agora = new Date();
+      const yyyy = agora.getFullYear();
+      const mm = String(agora.getMonth() + 1).padStart(2, '0');
+      const dd = String(agora.getDate()).padStart(2, '0');
+      const hh = String(agora.getHours()).padStart(2, '0');
+      const mi = String(agora.getMinutes()).padStart(2, '0');
+      const ss = String(agora.getSeconds()).padStart(2, '0');
+
+      const timestamp = `${yyyy}-${mm}-${dd}_${hh}-${mi}-${ss}`;
+
+      const fileName = `rcdexpress-${timestamp}.pdf`;
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+      res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+
+      res.send(result); // PDF buffer
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      erro: 'Falha ao gerar relatório',
+      detalhe: err.message
+    });
+  }
+});
+
+
 const PORT = 3000;
 
 // const options = {

@@ -5,6 +5,7 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const carbone = require('carbone');
+const puppeteer = require("puppeteer");
 
 const app = express();
 app.use(cors({
@@ -95,20 +96,109 @@ app.get('/relatorioExcel', async (req, res) => {
   }
 });
 
-app.get('/relatorioPdf', async (req, res) => {
+app.get("/relatorioPdf", async (req, res) => {
   try {
     const resposta = await buscarNotas(req.query);
     const data = resposta.data;
-    
-    const templatePath = './templates/template-ods.ods';
 
-    carbone.render(templatePath, data, { convertTo: 'pdf' }, (err, result) => {
-      if (err) {
-        console.error("Erro ao gerar PDF:", err);
-        return res.status(500).json({ erro: 'Falha ao gerar relatório' });
-      }
+    const html = `
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            body { 
+              font-family: Arial, sans-serif; 
+              font-size: 10px; 
+            }
 
-      // data e hora atual formatada
+            h2 {
+              margin-bottom: 10px;
+            }
+
+            table { 
+              width: 100%; 
+              border-collapse: collapse; 
+            }
+
+            th, td { 
+              border: 1px solid #ccc; 
+              padding: 5px; 
+              text-align: left;
+            }
+
+            th { 
+              background: #f3f3f3; 
+              font-weight: bold; 
+            }
+
+            /* quebra automática de páginas */
+            tr { page-break-inside: avoid; }
+
+            /* ajustar colunas largas */
+            td:nth-child(4) {
+              word-break: break-all;
+              font-size: 9px;
+            }
+
+            /* cabeçalho fixo em todas as páginas */
+            thead { 
+              display: table-header-group; 
+            }
+          </style>
+        </head>
+        <body>
+          <h2>Relatório de Notas</h2>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Código Filial</th>
+                <th>Tipo Lcto</th>
+                <th>Número Nota</th>
+                <th>Chave NFe</th>
+                <th>Série</th>
+                <th>Data Ocorrência</th>
+                <th>Nome Destinatário</th>
+                <th>Descrição Ocorrência</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${data.map((n) => `
+                <tr>
+                  <td>${n.codFilial || ""}</td>
+                  <td>${n.tipoLcto || ""}</td>
+                  <td>${n.numNota || ""}</td>
+                  <td>${n.chaveNFe || ""}</td>
+                  <td>${n.serie || ""}</td>
+                  <td>${n.dataOcorrencia ? new Date(n.dataOcorrencia).toLocaleDateString("pt-BR") : ""}</td>
+                  <td>${n.nomeDestinatario || ""}</td>
+                  <td>${n.descrOcorrencia || ""}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    });
+
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+
+    const pdf = await page.pdf({
+      format: "A4",
+      printBackground: true,
+    });
+
+    await browser.close();
+
+    // data e hora atual formatada
       const agora = new Date();
       const yyyy = agora.getFullYear();
       const mm = String(agora.getMonth() + 1).padStart(2, '0');
@@ -121,19 +211,16 @@ app.get('/relatorioPdf', async (req, res) => {
 
       const fileName = `rcdexpress-${timestamp}.pdf`;
 
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-      res.setHeader("Access-Control-Expose-Headers", "Content-Disposition");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${fileName}"`
+    );
 
-      res.send(result); // PDF buffer
-    });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({
-      erro: 'Falha ao gerar relatório',
-      detalhe: err.message
-    });
+    res.send(pdf);
+  } catch (e) {
+    console.error("Erro ao gerar PDF:", e);
+    res.status(500).json({ erro: "Falha ao gerar PDF" });
   }
 });
 

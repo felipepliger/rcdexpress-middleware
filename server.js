@@ -6,6 +6,7 @@ const https = require('https');
 const fs = require('fs');
 const carbone = require('carbone');
 const puppeteer = require("puppeteer");
+const puppeteerCore = require("puppeteer-core");
 const chromium = require("@sparticuz/chromium");
 
 const app = express();

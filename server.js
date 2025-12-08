@@ -6,6 +6,7 @@ const https = require('https');
 const fs = require('fs');
 const carbone = require('carbone');
 const puppeteer = require("puppeteer");
+const chromium = require("@sparticuz/chromium");
 
 const app = express();
 app.use(cors({
@@ -78,7 +79,7 @@ app.get('/relatorioExcel', async (req, res) => {
 
       const timestamp = `${yyyy}-${mm}-${dd}_${hh}-${mi}-${ss}`;
 
-      const fileName = `rcdexpress-${timestamp}.xlsx`;
+      const fileName = `rcdexpress-excel-${timestamp}.xlsx`;
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
@@ -183,48 +184,30 @@ app.get("/relatorioPdf", async (req, res) => {
     `;
 
 
-    // const browser = await puppeteer.launch({
-    //   headless: "new",
-    //   args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    // });
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-      ],
-    });
+    const browser = await getBrowser();
 
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle0" });
 
-    const pdf = await page.pdf({
-      format: "A4",
-      printBackground: true,
-    });
+    const pdf = await page.pdf({ format: "A4", printBackground: true });
 
     await browser.close();
 
     // data e hora atual formatada
-      const agora = new Date();
-      const yyyy = agora.getFullYear();
-      const mm = String(agora.getMonth() + 1).padStart(2, '0');
-      const dd = String(agora.getDate()).padStart(2, '0');
-      const hh = String(agora.getHours()).padStart(2, '0');
-      const mi = String(agora.getMinutes()).padStart(2, '0');
-      const ss = String(agora.getSeconds()).padStart(2, '0');
+    const agora = new Date();
+    const yyyy = agora.getFullYear();
+    const mm = String(agora.getMonth() + 1).padStart(2, '0');
+    const dd = String(agora.getDate()).padStart(2, '0');
+    const hh = String(agora.getHours()).padStart(2, '0');
+    const mi = String(agora.getMinutes()).padStart(2, '0');
+    const ss = String(agora.getSeconds()).padStart(2, '0');
 
-      const timestamp = `${yyyy}-${mm}-${dd}_${hh}-${mi}-${ss}`;
+    const timestamp = `${yyyy}-${mm}-${dd}_${hh}-${mi}-${ss}`;
 
-      const fileName = `rcdexpress-${timestamp}.pdf`;
+    const fileName = `rcdexpress-pdf-${timestamp}.pdf`;
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${fileName}"`
-    );
-
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
     res.send(pdf);
   } catch (e) {
     console.error("Erro ao gerar PDF:", e);
@@ -232,6 +215,25 @@ app.get("/relatorioPdf", async (req, res) => {
   }
 });
 
+
+function isRender() {
+  return !!process.env.RENDER;
+}
+
+async function getBrowser() {
+  if (isRender()) {
+    return puppeteerCore.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    });
+  } else {
+    return puppeteer.launch({
+      headless: true,
+    });
+  }
+}
 
 const PORT = 3000;
 

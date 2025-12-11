@@ -17,29 +17,49 @@ app.use(cors({
 
 const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 
-async function buscarNotas({ cnpjclie, serienf, numnota, chaveNFe, dataInicio, dataFim }) {
-  let url = 'https://rcdexpress.ddns.com.br:8443/ADTWebService/conhecimento/listarNota?';
+async function buscarNotas({ cnpjclie, serienf, numnota, chaveNFe, dataInicio, dataFim, tipoCte }) {
 
-  if (cnpjclie && serienf && chaveNFe) {
-    url += `cnpjclie=${cnpjclie}&serienf=${serienf}&chaveNFe=${chaveNFe}`;
-  } else if (cnpjclie && dataInicio && dataFim) {
-    url += `cnpjclie=${cnpjclie}&dataInicio=${dataInicio}&dataFim=${dataFim}`;
-  } else if (cnpjclie && numnota) {
-    url += `cnpjclie=${cnpjclie}&numnota=${numnota}`;
-  } else {
-    throw new Error('Parâmetros insuficientes');
+  let url = 'https://rcdexpress.ddns.com.br:8443/ADTWebService/conhecimento/listarNota?';
+  const params = new URLSearchParams();
+  params.append("cnpjclie", cnpjclie);
+
+  if (tipoCte) {
+    if (Array.isArray(tipoCte)) {
+      tipoCte.forEach(t => params.append("tipocte", t));
+    } else {
+      // se for string e já com vírgulas
+      tipoCte.split(",").forEach(t => params.append("tipocte", t.trim()));
+    }
   }
 
-  const resposta = await axios.get(url, { httpsAgent });
+  if (serienf && chaveNFe) {
+    params.append("serienf", serienf);
+    params.append("chaveNFe", chaveNFe);
+  } else if (dataInicio && dataFim) {
+    params.append("dataInicio", dataInicio);
+    params.append("dataFim", dataFim);
+  } else if (numnota) {
+    params.append("numnota", numnota);
+  } else {
+    throw new Error("Parâmetros insuficientes");
+  }
 
-  const dataOrdenada = resposta.data.data.sort(
-    (a, b) => new Date(b.emissao) - new Date(a.emissao) // mais recente → mais antigo
-  );
+  const resposta = await axios.get(url, {
+    params,
+    httpsAgent,
+  });
 
-  return {
-    ...resposta.data,
-    data: dataOrdenada
-  };
+  if (resposta.data.data && resposta.data.data.length > 0) {
+    const dataOrdenada = resposta.data.data.sort(
+      (a, b) => new Date(b.emissao) - new Date(a.emissao)
+    );
+    return {
+      ...resposta.data,
+      data: dataOrdenada
+    };
+  } else {
+    return resposta.data;
+  }
 }
 
 
